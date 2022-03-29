@@ -1,4 +1,4 @@
-import { Color, ShaderMaterial, TextureLoader, Vector2, Vector4 } from "three";
+import { Color, ShaderMaterial, TextureLoader, Vector2, Vector3, Vector4 } from "three";
 import Fog from '../index';
 
 let randomnum = Math.random();
@@ -14,22 +14,38 @@ export class FogMaterial extends ShaderMaterial {
 
         this.vertexShader = `
             attribute float size;
-
             attribute vec4 transformRow1;
             attribute vec4 transformRow2;
             attribute vec4 transformRow3;
             attribute vec4 transformRow4;
+            attribute float offsetFrame;
 
             varying vec2 vUv;
+            varying float vOffsetFrame;
+            varying float vCurrentFrameId;
+            varying float vNextFrameId;
 
             uniform float uRandomNum;
             uniform sampler2D uNoise;
             uniform float uTime;
+            uniform float uFrameDuration;
 
             void main() {
 
+                float numOfFrames = 16.0;
 
-				// gl_PointSize = size * ( 300.0 / -mvPosition.z );
+                float currentFrameId = mod( floor( mod( uTime + offsetFrame, numOfFrames * uFrameDuration ) / uFrameDuration ), numOfFrames );
+
+                float nextFrameId;
+                if ( currentFrameId == numOfFrames - 1.0 ) {
+
+                    nextFrameId = 0.0;
+
+                } else {
+
+                    nextFrameId = currentFrameId + 1.0;
+
+                }
 
                 mat4 transforms = mat4(
                     transformRow1,
@@ -40,11 +56,12 @@ export class FogMaterial extends ShaderMaterial {
 
                 mat3 invViewRot = inverse( mat3( modelViewMatrix ) );
 
-                // gl_Position = projectionMatrix * modelViewMatrix * transforms * vec4( pos, 1.0 );
-
                 gl_Position = projectionMatrix * ( modelViewMatrix * transforms * vec4(0.0, 0.0, 0.0, 1.0) + vec4( position, 1.0 ) );
 
                 vUv = uv;
+                vOffsetFrame = offsetFrame;
+                vNextFrameId = nextFrameId;
+                vCurrentFrameId  = currentFrameId;
 
             }
         `;
@@ -53,28 +70,42 @@ export class FogMaterial extends ShaderMaterial {
         this.transparent = true;
 
         this.fragmentShader = `
-            // #define PI 3.1415926538
-
             varying vec2 vUv;
+            varying float vOffsetFrame;
+            varying float vCurrentFrameId;
+            varying float vNextFrameId;
 
             uniform sampler2D uPointTexture;
             uniform float alphaTest;
             uniform vec3 uColor;
             uniform float uTime;
-            uniform vec4 uvOffsets;
-            uniform float uFragmentTime;
+            // uniform float uFragmentTime;
+            uniform float uOpacity;
+            uniform float uFrameDuration;
 
             void main() {
 
-                gl_FragColor = vec4( uColor, 1.0 );
+                gl_FragColor = vec4( uColor, 0.04 );
 
-                // gl_FragColor = gl_FragColor * texture2D( uPointTexture, vec2( gl_PointCoord.x * 0.25 + uvOffset.x, gl_PointCoord.y * 0.25 + uvOffset.y ) );
+                //
 
-                vec4 texture1 = texture2D( uPointTexture, vec2( vUv.x * 0.25 + uvOffsets.x, vUv.y * 0.25 + uvOffsets.y ) );
-                vec4 texture2 = texture2D( uPointTexture, vec2( vUv.x * 0.25 + uvOffsets.z, vUv.y * 0.25 + uvOffsets.w ) );
+                vec4 offsets;
 
-                // gl_FragColor = ( uFragmentTime * texture1 + texture2 * ( 1.0 - uFragmentTime ) );
-                gl_FragColor = mix( texture1, texture2, uFragmentTime );
+                offsets.y = floor( vCurrentFrameId / 4.0 ) * 0.25;
+                offsets.x = mod( vCurrentFrameId, 4.0 ) * 0.25;
+
+                offsets.w = floor( vNextFrameId / 4.0 ) * 0.25;
+                offsets.z = mod( vNextFrameId, 4.0 ) * 0.25;
+
+                //
+
+                vec4 texture1 = texture2D( uPointTexture, vec2( vUv.x * 0.25 + offsets.x, vUv.y * 0.25 + offsets.y ) );
+                vec4 texture2 = texture2D( uPointTexture, vec2( vUv.x * 0.25 + offsets.z, vUv.y * 0.25 + offsets.w ) );
+
+                float fragmentTime = mod( uTime + vOffsetFrame, uFrameDuration ) / uFrameDuration;
+
+                gl_FragColor = mix( texture1, texture2, fragmentTime );
+                gl_FragColor *= vec4( uColor, uOpacity );
 
                 if ( gl_FragColor.a < alphaTest ) discard;
 
@@ -90,9 +121,11 @@ export class FogMaterial extends ShaderMaterial {
             uTime: { value: 0.0 },
             uTimeX: { value: 0.0 },
             uTimeY: { value: 0.0 },
-            // uvOffset: { value: new Vector2() },
-            uvOffsets: { value: new Vector4() },
-            uFragmentTime: { value: 0.0 }
+            // uvOffsets: { value: new Vector4() },
+            uFragmentTime: { value: 0.0 },
+            uOpacity: { value: 0.8 },
+            // uOffsetFrame: { value: 0.0 },
+            uFrameDuration: { value: 16.0 }
         };
 
     }
