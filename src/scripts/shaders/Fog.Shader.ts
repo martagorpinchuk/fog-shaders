@@ -1,5 +1,5 @@
 import { Color, ShaderMaterial, TextureLoader, Vector2, Vector3, Vector4 } from "three";
-import Fog from '../index';
+// import FogScene from '../index';
 
 let randomnum = Math.random();
 const textureLoader = new TextureLoader();
@@ -13,7 +13,6 @@ export class FogMaterial extends ShaderMaterial {
         super();
 
         this.vertexShader = `
-            attribute float size;
             attribute vec4 transformRow1;
             attribute vec4 transformRow2;
             attribute vec4 transformRow3;
@@ -79,7 +78,6 @@ export class FogMaterial extends ShaderMaterial {
             uniform float alphaTest;
             uniform vec3 uColor;
             uniform float uTime;
-            // uniform float uFragmentTime;
             uniform float uOpacity;
             uniform float uFrameDuration;
 
@@ -121,10 +119,8 @@ export class FogMaterial extends ShaderMaterial {
             uTime: { value: 0.0 },
             uTimeX: { value: 0.0 },
             uTimeY: { value: 0.0 },
-            // uvOffsets: { value: new Vector4() },
             uFragmentTime: { value: 0.0 },
             uOpacity: { value: 0.8 },
-            // uOffsetFrame: { value: 0.0 },
             uFrameDuration: { value: 16.0 }
         };
 

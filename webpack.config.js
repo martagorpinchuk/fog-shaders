@@ -12,7 +12,7 @@ module.exports = conf = {
         poll: 500
     },
     entry: {
-        main: './src/scripts/index.tsx'
+        main: './src/scripts/index'
     },
     resolve: {
         extensions: [ '.ts', '.tsx', '.js' ]
