@@ -1,6 +1,7 @@
 import { Clock, Color, Mesh, MeshBasicMaterial, PerspectiveCamera, PlaneBufferGeometry, Scene, WebGLRenderer } from "three";
 import { MapControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { FogGfx } from "./Fog";
+import { Pane } from "tweakpane";
 
 
 //
@@ -16,6 +17,7 @@ class FogScene {
     public delta: number;
     public elapsedTime: number = 0;
     public clock: Clock;
+    public pane: Pane;
 
     public fog: FogGfx;
 
@@ -70,8 +72,56 @@ class FogScene {
         this.clock = new Clock();
 
         // Fog
-        this.fog = new FogGfx( 16, 0.15, 1, 1 );
+        this.fog = new FogGfx( 16, 1, 1, 1 );
         this.scene.add( this.fog.mesh );
+
+        // debug fog
+        const props = { color: '0x1A75FF' };
+
+        this.pane = new Pane();
+        const fogParam = this.pane.addFolder( {
+            title: 'Fog',
+        } );
+
+        fogParam.addInput( props, 'color', { view: 'color', alpha: true, label: 'uColor' } ).on( 'change', () => {
+
+            this.fog.material.uniforms.uColor.value.setHex( parseInt( props.color.replace( '#', '0x' ) ) );
+
+        } );
+        fogParam.addInput(  this.fog, 'frameDuration', { min: 10, max: 800, label: 'frameDuration' } ).on( 'change', ( ev ) => {
+
+            this.fog.setFrameDuration = ev.value;
+
+        } );
+        fogParam.addInput( this.fog.material.uniforms.uOpacity, 'value', { min: 0, max: 1, step: 0.01, label: 'uOpacity' } ).on( 'change', ( ev ) => {
+
+            this.fog.material.uniforms.uOpacity.value = ev.value;
+
+        } );
+        fogParam.addInput( this.fog, 'height', { min: 0, max: 5, step: 0.01, label: 'fogHeight' } ).on( 'change', ( ev ) => {
+
+            this.fog.height = ev.value;
+            this.fog.generate( this.fog.density, this.fog.height, this.fog.width, this.fog.depth );
+
+        } );
+        fogParam.addInput( this.fog, 'width', { min: 0, max: 5, step: 0.01, label: 'fogWidth' } ).on( 'change', ( ev ) => {
+
+            this.fog.width = ev.value;
+            this.fog.generate( this.fog.density, this.fog.height, this.fog.width, this.fog.depth );
+
+        } );
+        fogParam.addInput( this.fog, 'depth', { min: 0, max: 5, step: 0.01, label: 'fogDepth' } ).on( 'change', ( ev ) => {
+
+            this.fog.depth = ev.value;
+            this.fog.generate( this.fog.density, this.fog.height, this.fog.width, this.fog.depth );
+
+        } );
+        fogParam.addInput( this.fog, 'density', { min: 3, max: 20, step: 1, label: 'density' } ).on( 'change', ( ev ) => {
+
+            this.fog.density = ev.value;
+            this.fog.generate( this.fog.density, this.fog.height, this.fog.width, this.fog.depth )
+
+        } );
 
         this.tick();
 
@@ -97,7 +147,7 @@ class FogScene {
         this.delta = this.clock.getDelta() * 1000;
         this.elapsedTime += this.delta;
 
-        this.fog.fogAnimation( this.fog.frameDuration, this.elapsedTime );
+        this.fog.setFrameDuration = this.fog.frameDuration;
 
         this.fog.material.uniforms.uTime.value = this.elapsedTime;
 
