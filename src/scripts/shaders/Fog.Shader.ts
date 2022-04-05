@@ -118,7 +118,7 @@ export class FogMaterial extends ShaderMaterial {
             uPointTexture: { value: fogTexture },
             uNoise: { value: noise },
             alphaTest: { value: 0.0001 },
-            uColor: { value: new Color( 0xffffff ) },
+            uColor: { value: new Color( 0x1A75FF ) },
             uTime: { value: 0.0 },
             uTimeX: { value: 0.0 },
             uTimeY: { value: 0.0 },

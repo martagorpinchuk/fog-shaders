@@ -22,21 +22,25 @@ export class FogGfx {
     public randomPos: number = (Math.random() - 0.5) * 2;
     public speedSizeChange: number = 0.01;
     public coordEpearingParticle: number = 0.3;
+    public opacityCoef: number = 0.00999;
 
     private _frameDuration: number = 300;
+    private _color: number;
 
     //
 
-    constructor ( numberOfSprites: number, height: number, widthwidthwidth: number, depth: number  ) {
+    constructor ( color: number, numberOfSprites: number, height: number, width: number, depth: number  ) {
 
         this.height = height;
-        this.width = widthwidthwidth;
+        this.width = width;
         this.depth = depth;
         this.numberOfSprites = numberOfSprites;
 
         // create fog
         this.material = new FogMaterial();
         this.material.side = DoubleSide;
+
+        this.material.uniforms.uColor.value.setHex( color );
 
         this.material.uniforms.uFrameDuration.value = this._frameDuration;
 
@@ -189,7 +193,7 @@ export class FogGfx {
             newPosY += velosityY;
             newPosZ += velosityZ;
 
-            const newOpacity = this.geometry.attributes.opacityDecrease.getX( i ) - 0.00999;
+            const newOpacity = this.geometry.attributes.opacityDecrease.getX( i ) - this.opacityCoef;
             this.geometry.attributes.opacityDecrease.setX( i, newOpacity );
 
             if ( newOpacity <= 0.1 ) {
@@ -228,5 +232,28 @@ export class FogGfx {
         this._frameDuration = this.material.uniforms.uFrameDuration.value;
 
     };
+
+    public get color () {
+
+        return this._color;
+
+    };
+
+    public set color ( color: any ) {
+
+        this._color = color;
+
+        if ( typeof color === 'string' ) {
+
+            this.material.uniforms.uColor.value.setHex( parseInt( color.replace( '#', '0x' ) ) )
+
+        } else {
+
+            this.material.uniforms.uColor.value.setHex( color );
+            console.log('worked');
+
+        }
+
+    }
 
 }

@@ -72,20 +72,29 @@ class FogScene {
         this.clock = new Clock();
 
         // Fog
-        this.fog = new FogGfx( 16, 1, 1, 1 );
+        let props = {
+
+            numberOfSprites: 16,
+            height: 1,
+            width: 1,
+            depth: 1,
+            color: '#ff0000'
+
+        }
+        this.fog = new FogGfx( new Color().setHex( + props.color.replace( '#', '0x' ) ).getHex(), props.numberOfSprites, props.height, props.width, props.depth ); // props color, ...
         this.scene.add( this.fog.mesh );
 
         // debug fog
-        const props = { color: '0x1A75FF' };
 
         this.pane = new Pane();
         const fogParam = this.pane.addFolder( {
             title: 'Fog',
         } );
 
-        fogParam.addInput( props, 'color', { view: 'color', alpha: true, label: 'uColor' } ).on( 'change', () => {
+        fogParam.addInput( props, 'color', { view: 'color', alpha: true, label: 'uColor' } ).on( 'change', ( ev ) => {
 
-            this.fog.material.uniforms.uColor.value.setHex( parseInt( props.color.replace( '#', '0x' ) ) );
+            // this.fog.material.uniforms.uColor.value.setHex( parseInt( ev.value.replace( '#', '0x' ) ) );
+            this.fog.color =  ev.value;
 
         } );
         fogParam.addInput(  this.fog, 'frameDuration', { min: 10, max: 800, label: 'frameDuration' } ).on( 'change', ( ev ) => {
@@ -127,7 +136,11 @@ class FogScene {
             this.fog.coordEpearingParticle = ev.value;
 
         } );
+        fogParam.addInput( this.fog, 'opacityCoef', { min: 0, max: 0.03, step: 0.001, label: 'opacity' } ).on( 'change', ( ev ) => {
 
+            this.fog.opacityCoef = ev.value;
+
+        } );
 
         this.tick();
 
