@@ -90,12 +90,7 @@ class FogScene {
         } );
         fogParam.addInput(  this.fog, 'frameDuration', { min: 10, max: 800, label: 'frameDuration' } ).on( 'change', ( ev ) => {
 
-            this.fog.setFrameDuration = ev.value;
-
-        } );
-        fogParam.addInput( this.fog.material.uniforms.uOpacity, 'value', { min: 0, max: 1, step: 0.01, label: 'uOpacity' } ).on( 'change', ( ev ) => {
-
-            this.fog.material.uniforms.uOpacity.value = ev.value;
+            this.fog.frameDuration = ev.value;
 
         } );
         fogParam.addInput( this.fog, 'height', { min: 0, max: 5, step: 0.01, label: 'fogHeight' } ).on( 'change', ( ev ) => {
@@ -122,6 +117,17 @@ class FogScene {
             this.fog.generate( this.fog.density, this.fog.height, this.fog.width, this.fog.depth )
 
         } );
+        fogParam.addInput( this.fog, 'speedSizeChange', { min: 0, max: 0.05, step: 0.001, label: 'speedSizeChange' } ).on( 'change', ( ev ) => {
+
+            this.fog.speedSizeChange = ev.value;
+
+        } );
+        fogParam.addInput( this.fog, 'coordEpearingParticle', { min: 0, max: 1, step: 0.001, label: 'coordEpearingParticle' } ).on( 'change', ( ev ) => {
+
+            this.fog.coordEpearingParticle = ev.value;
+
+        } );
+
 
         this.tick();
 
@@ -147,7 +153,7 @@ class FogScene {
         this.delta = this.clock.getDelta() * 1000;
         this.elapsedTime += this.delta;
 
-        this.fog.setFrameDuration = this.fog.frameDuration;
+        this.fog.update( this.delta );
 
         this.fog.material.uniforms.uTime.value = this.elapsedTime;
 

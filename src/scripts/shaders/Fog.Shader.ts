@@ -18,11 +18,15 @@ export class FogMaterial extends ShaderMaterial {
             attribute vec4 transformRow3;
             attribute vec4 transformRow4;
             attribute float offsetFrame;
+            attribute float size;
+            attribute vec3 velocity;
+            attribute float opacityDecrease;
 
             varying vec2 vUv;
             varying float vOffsetFrame;
             varying float vCurrentFrameId;
             varying float vNextFrameId;
+            varying float vOpacityDecrease;
 
             uniform float uRandomNum;
             uniform sampler2D uNoise;
@@ -53,14 +57,13 @@ export class FogMaterial extends ShaderMaterial {
                     transformRow4
                 );
 
-                mat3 invViewRot = inverse( mat3( modelViewMatrix ) );
-
-                gl_Position = projectionMatrix * ( modelViewMatrix * transforms * vec4(0.0, 0.0, 0.0, 1.0) + vec4( position, 1.0 ) );
+                gl_Position = projectionMatrix * ( modelViewMatrix * transforms * vec4(0.0, 0.0, 0.0, 1.0) + vec4( position * size, 1.0 ) );
 
                 vUv = uv;
                 vOffsetFrame = offsetFrame;
                 vNextFrameId = nextFrameId;
                 vCurrentFrameId  = currentFrameId;
+                vOpacityDecrease = opacityDecrease;
 
             }
         `;
@@ -73,12 +76,12 @@ export class FogMaterial extends ShaderMaterial {
             varying float vOffsetFrame;
             varying float vCurrentFrameId;
             varying float vNextFrameId;
+            varying float vOpacityDecrease;
 
             uniform sampler2D uPointTexture;
             uniform float alphaTest;
             uniform vec3 uColor;
             uniform float uTime;
-            uniform float uOpacity;
             uniform float uFrameDuration;
 
             void main() {
@@ -103,7 +106,7 @@ export class FogMaterial extends ShaderMaterial {
                 float fragmentTime = mod( uTime + vOffsetFrame, uFrameDuration ) / uFrameDuration;
 
                 gl_FragColor = mix( texture1, texture2, fragmentTime );
-                gl_FragColor *= vec4( uColor, uOpacity );
+                gl_FragColor *= vec4( uColor, vOpacityDecrease );
 
                 if ( gl_FragColor.a < alphaTest ) discard;
 
@@ -119,8 +122,6 @@ export class FogMaterial extends ShaderMaterial {
             uTime: { value: 0.0 },
             uTimeX: { value: 0.0 },
             uTimeY: { value: 0.0 },
-            uFragmentTime: { value: 0.0 },
-            uOpacity: { value: 0.8 },
             uFrameDuration: { value: 16.0 }
         };
 

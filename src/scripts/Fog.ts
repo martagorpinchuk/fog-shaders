@@ -12,11 +12,18 @@ export class FogGfx {
     public material: FogMaterial;
     public geometry: InstancedBufferGeometry;
     public mesh: Mesh;
-    public frameDuration: number = 300;
     public size: number;
-    public density: number = 3;
+    public density: number = 10;
+    public velocity: Array<number> = [];
+    public positions: Array<number> = [];
+    public rotationX: number;
+    public rotationY: number;
+    public rotationZ: number;
+    public randomPos: number = (Math.random() - 0.5) * 2;
+    public speedSizeChange: number = 0.01;
+    public coordEpearingParticle: number = 0.3;
 
-    private _frameDuration: number;
+    private _frameDuration: number = 300;
 
     //
 
@@ -30,6 +37,8 @@ export class FogGfx {
         // create fog
         this.material = new FogMaterial();
         this.material.side = DoubleSide;
+
+        this.material.uniforms.uFrameDuration.value = this._frameDuration;
 
         this.generate( this.density, this.height, this.width, this.depth );
 
@@ -54,7 +63,7 @@ export class FogGfx {
 
         this.numberOfSprites = density * height * width * depth;
 
-        let vertex, size = [], uv, offsetFrame = [];
+        let positions, size = [], uv, offsetFrame = [], sizeIncrease = [], opacityDecrease = [];
         const transformRow1 = [];
         const transformRow2 = [];
         const transformRow3 = [];
@@ -92,32 +101,35 @@ export class FogGfx {
             let scaleY = 1;
             let scaleZ = 1;
 
-            let rotationX = Math.random() / ( Math.random() - 0.5 );
-            let rotationY = Math.random() / ( Math.random() - 0.5 );
-            let rotationZ = 0;
+            const rotationX = 0;
+            const rotationY = 0;
+            const rotationZ = 0;
 
-            const matrix = new Matrix4().compose( new Vector3( distanceX, distanceY, distanceZ ), new Quaternion().setFromEuler( new Euler( rotationX, rotationY, rotationZ ) ), new Vector3( scaleX, scaleY, scaleZ ) ).toArray();
+            let transformMatrix = new Matrix4().compose( new Vector3( distanceX, distanceY, distanceZ ), new Quaternion().setFromEuler( new Euler( rotationX, rotationY, rotationZ ) ), new Vector3( scaleX, scaleY, scaleZ ) ).toArray();
 
-            transformRow1.push( matrix[0], matrix[1], matrix[2], matrix[3] );
-            transformRow2.push( matrix[4], matrix[5], matrix[6], matrix[7] );
-            transformRow3.push( matrix[8], matrix[9], matrix[10], matrix[11] );
-            transformRow4.push( matrix[12], matrix[13], matrix[14], matrix[15] );
+            transformRow1.push( transformMatrix[0], transformMatrix[1], transformMatrix[2], transformMatrix[3] );
+            transformRow2.push( transformMatrix[4], transformMatrix[5], transformMatrix[6], transformMatrix[7] );
+            transformRow3.push( transformMatrix[8], transformMatrix[9], transformMatrix[10], transformMatrix[11] );
+            transformRow4.push( transformMatrix[12], transformMatrix[13], transformMatrix[14], transformMatrix[15] );
 
-            size[ i ] = Math.random() * 0.01;
+            size.push( Math.random() );
+            sizeIncrease.push( Math.random() * 0.02 );
+            opacityDecrease.push( Math.random() );
+            this.velocity.push( ( Math.random() - 0.5 ) * 2 / 100, ( Math.random() - 0.5 ) * 2 / 100, ( Math.random() - 0.5 ) * 2 / 100 );
 
             offsetFrame.push( Math.floor( Math.random() * 50 * 16 ) );
 
         }
 
-        vertex = [
+        this.positions = [
 
-            -1.0, -1.0,  1.0,
-            1.0, -1.0,  1.0,
-            1.0,  1.0,  1.0,
+            - 1.0, - 1.0,  0.0,
+              1.0, - 1.0,  0.0,
+              1.0,   1.0,  0.0,
 
-            1.0,  1.0,  1.0,
-            -1.0,  1.0,  1.0,
-            -1.0, -1.0,  1.0
+              1.0,   1.0,  0.0,
+            - 1.0,   1.0,  0.0,
+            - 1.0, - 1.0,  0.0
 
         ];
 
@@ -135,14 +147,17 @@ export class FogGfx {
 
         this.geometry = new InstancedBufferGeometry();
 
-        this.geometry.setAttribute( 'position', new Float32BufferAttribute( vertex, 3 ) );
+        this.geometry.setAttribute( 'position', new Float32BufferAttribute( this.positions, 3 ) );
         this.geometry.setAttribute( 'uv', new Float32BufferAttribute( uv, 2 ) );
 
         this.geometry.setAttribute( 'transformRow1', new InstancedBufferAttribute( new Float32Array( transformRow1 ), 4 ) );
         this.geometry.setAttribute( 'transformRow2', new InstancedBufferAttribute( new Float32Array( transformRow2 ), 4 ) );
         this.geometry.setAttribute( 'transformRow3', new InstancedBufferAttribute( new Float32Array( transformRow3 ), 4 ) );
         this.geometry.setAttribute( 'transformRow4', new InstancedBufferAttribute( new Float32Array( transformRow4 ), 4 ) );
-        this.geometry.setAttribute( 'offsetFrame', new InstancedBufferAttribute( new Float32Array( offsetFrame ), 1 ) )
+        this.geometry.setAttribute( 'offsetFrame', new InstancedBufferAttribute( new Float32Array( offsetFrame ), 1 ) );
+        this.geometry.setAttribute( 'velocity', new InstancedBufferAttribute( new Float32Array( this.velocity ), 3 ) );
+        this.geometry.setAttribute( 'opacityDecrease', new InstancedBufferAttribute( new Float32Array( opacityDecrease ), 1 ) );
+        this.geometry.setAttribute( 'size', new InstancedBufferAttribute( new Float32Array( size ), 1 ) );
 
         this.mesh = new Mesh( this.geometry, this.material );
         this.mesh.position.set( 0, 0.5, 0 );
@@ -155,26 +170,62 @@ export class FogGfx {
 
     };
 
-    public update ( elapsedTime?: number ) : void {
+    public update ( delta: number ) : void {
 
-        this.material.uniforms.uFragmentTime.value = ( elapsedTime % this.frameDuration ) / this.frameDuration;
+        for ( let i = 0; i < this.numberOfSprites; i ++ ) {
+
+            const newSize = this.geometry.attributes.size.getX( i ) + this.speedSizeChange;
+            this.geometry.attributes.size.setX( i, newSize );
+
+            let velosityX = this.geometry.attributes.velocity.getX( i );
+            let velosityY = this.geometry.attributes.velocity.getY( i );
+            let velosityZ = this.geometry.attributes.velocity.getZ( i );
+
+            let newPosX = this.geometry.attributes.transformRow4.getX( i );
+            let newPosY = this.geometry.attributes.transformRow4.getY( i );
+            let newPosZ = this.geometry.attributes.transformRow4.getZ( i );
+
+            newPosX += velosityX;
+            newPosY += velosityY;
+            newPosZ += velosityZ;
+
+            const newOpacity = this.geometry.attributes.opacityDecrease.getX( i ) - 0.00999;
+            this.geometry.attributes.opacityDecrease.setX( i, newOpacity );
+
+            if ( newOpacity <= 0.1 ) {
+
+                newPosX = ( Math.random() - 0.5 ) * this.coordEpearingParticle;
+                newPosY = ( Math.random() - 0.5 ) * this.coordEpearingParticle;
+                newPosZ = ( Math.random() - 0.5 ) * this.coordEpearingParticle;
+                this.geometry.attributes.size.setX( i, 0 );
+                this.geometry.attributes.opacityDecrease.setX( i, 1 );
+
+            }
+
+            this.geometry.attributes.transformRow4.setX( i, newPosX );
+            this.geometry.attributes.transformRow4.setY( i, newPosY );
+            this.geometry.attributes.transformRow4.setZ( i, newPosZ );
+
+        }
+
+        this.geometry.attributes.opacityDecrease.needsUpdate = true;
+        this.geometry.attributes.size.needsUpdate = true;
+        this.geometry.attributes.transformRow4.needsUpdate = true;
 
     };
 
     //
 
-    public get getFrameDuration () {
+    public get frameDuration () {
 
         return this._frameDuration;
 
     };
 
-    public set setFrameDuration ( frameDuration: number ) {
+    public set frameDuration ( frameDuration: number ) {
 
         this.material.uniforms.uFrameDuration.value = frameDuration;
         this._frameDuration = this.material.uniforms.uFrameDuration.value;
-
-        this.update();
 
     };
 
