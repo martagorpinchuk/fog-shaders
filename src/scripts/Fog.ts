@@ -1,4 +1,4 @@
-import { DoubleSide, Euler, Float32BufferAttribute, InstancedBufferAttribute, InstancedBufferGeometry, Matrix4, Mesh, Object3D, Quaternion, Vector3 } from "three";
+import { BoxGeometry, DoubleSide, Euler, Float32BufferAttribute, InstancedBufferAttribute, InstancedBufferGeometry, Matrix4, Mesh, MeshBasicMaterial, Object3D, Quaternion, Vector3 } from "three";
 import { FogMaterial } from './shaders/Fog.Shader';
 
 //
@@ -13,23 +13,28 @@ export class FogGfx {
     public geometry: InstancedBufferGeometry;
     public mesh: Mesh;
     public size: number;
-    public density: number = 10;
+    public density: number = 15;
     public velocity: Array<number> = [];
     public positions: Array<number> = [];
     public rotationX: number;
     public rotationY: number;
     public rotationZ: number;
     public randomPos: number = (Math.random() - 0.5) * 2;
-    public speedSizeChange: number = 0.01;
+    public speedSizeChange: number = 0.029;
     public coordEpearingParticle: number = 0.3;
     public opacityCoef: number = 0.00999;
+    public cube: Mesh;
+    public wrapper: Object3D = new Object3D();
+    public newPosition: Vector3 = new Vector3( 0, 0.5, 0 );
+    public soursePosition: Vector3 = new Vector3( 0, 0.5, 0 );
+    public cubeVisibility: Boolean = true;
 
     private _frameDuration: number = 300;
     private _color: number;
 
     //
 
-    constructor ( color: number, numberOfSprites: number, height: number, width: number, depth: number  ) {
+    constructor ( color: number, numberOfSprites: number, height: number, width: number, depth: number ) {
 
         this.height = height;
         this.width = width;
@@ -44,21 +49,37 @@ export class FogGfx {
 
         this.material.uniforms.uFrameDuration.value = this._frameDuration;
 
-        this.generate( this.density, this.height, this.width, this.depth );
+        this.generate( this.density, this.height, this.width, this.depth, this.newPosition );
 
     };
 
-    public generate ( density: number, height: number, width: number, depth: number ) : void {
+    public generate ( density: number, height: number, width: number, depth: number, newPosition: Vector3 ) : void {
 
-        let parent: Object3D;
+        const boxGeometry = new BoxGeometry( 1, 1, 1 );
+        const boxMaterial = new MeshBasicMaterial( { color: 0x00ff00 } );
+        boxMaterial.wireframe = true;
+
+        // this.cubeVisibility = true;
+
+        if ( ! this.cube ) {
+
+            this.cube = new Mesh( boxGeometry, boxMaterial );
+            this.wrapper.add( this.cube );
+
+        }
 
         if ( this.mesh ) {
 
             this.geometry.dispose();
-            parent = this.mesh.parent;
-            this.mesh.parent.remove( this.mesh );
+            boxGeometry.dispose();
+
+            this.wrapper.remove( this.mesh );
 
         }
+
+        this.newPosition.x = newPosition.x;
+        this.newPosition.y = newPosition.y;
+        this.newPosition.z = newPosition.z;
 
         this.height = height;
         this.width = width;
@@ -67,7 +88,7 @@ export class FogGfx {
 
         this.numberOfSprites = density * height * width * depth;
 
-        let positions, size = [], uv, offsetFrame = [], sizeIncrease = [], opacityDecrease = [];
+        let size = [], uv, offsetFrame = [], sizeIncrease = [], opacityDecrease = [];
         const transformRow1 = [];
         const transformRow2 = [];
         const transformRow3 = [];
@@ -164,13 +185,9 @@ export class FogGfx {
         this.geometry.setAttribute( 'size', new InstancedBufferAttribute( new Float32Array( size ), 1 ) );
 
         this.mesh = new Mesh( this.geometry, this.material );
-        this.mesh.position.set( 0, 0.5, 0 );
+        this.cube.position.set( height, width, depth );
 
-        if ( parent ) {
-
-            parent.add( this.mesh );
-
-        }
+        this.wrapper.add( this.mesh );
 
     };
 
@@ -198,9 +215,9 @@ export class FogGfx {
 
             if ( newOpacity <= 0.1 ) {
 
-                newPosX = ( Math.random() - 0.5 ) * this.coordEpearingParticle;
-                newPosY = ( Math.random() - 0.5 ) * this.coordEpearingParticle;
-                newPosZ = ( Math.random() - 0.5 ) * this.coordEpearingParticle;
+                newPosX = ( Math.random() - 0.5 ) * this.coordEpearingParticle + this.soursePosition.x;
+                newPosY = ( Math.random() - 0.5 ) * this.coordEpearingParticle + this.soursePosition.y;
+                newPosZ = ( Math.random() - 0.5 ) * this.coordEpearingParticle + this.soursePosition.z;
                 this.geometry.attributes.size.setX( i, 0 );
                 this.geometry.attributes.opacityDecrease.setX( i, 1 );
 
@@ -250,7 +267,6 @@ export class FogGfx {
         } else {
 
             this.material.uniforms.uColor.value.setHex( color );
-            console.log('worked');
 
         }
 
