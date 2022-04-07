@@ -70,6 +70,7 @@ export class FogMaterial extends ShaderMaterial {
 
         this.depthWrite = false;
         this.transparent = true;
+        // this.wireframe = true;
 
         this.fragmentShader = `
             varying vec2 vUv;

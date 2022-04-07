@@ -5,7 +5,7 @@ import { FogMaterial } from './shaders/Fog.Shader';
 
 export class FogGfx {
 
-    public numberOfSprites: number = 10;
+    public numberOfSprites: number = 60;
     public height: number = 1;
     public width: number = 1;
     public depth: number = 1;
@@ -58,8 +58,6 @@ export class FogGfx {
         const boxGeometry = new BoxGeometry( 1, 1, 1 );
         const boxMaterial = new MeshBasicMaterial( { color: 0x00ff00 } );
         boxMaterial.wireframe = true;
-
-        // this.cubeVisibility = true;
 
         if ( ! this.cube ) {
 
@@ -185,13 +183,12 @@ export class FogGfx {
         this.geometry.setAttribute( 'size', new InstancedBufferAttribute( new Float32Array( size ), 1 ) );
 
         this.mesh = new Mesh( this.geometry, this.material );
-        this.cube.position.set( height, width, depth );
 
         this.wrapper.add( this.mesh );
 
     };
 
-    public update ( delta: number ) : void {
+    public update ( delta: number, intersects: Vector3 ) : void {
 
         for ( let i = 0; i < this.numberOfSprites; i ++ ) {
 
@@ -206,18 +203,23 @@ export class FogGfx {
             let newPosY = this.geometry.attributes.transformRow4.getY( i );
             let newPosZ = this.geometry.attributes.transformRow4.getZ( i );
 
-            newPosX += velosityX;
-            newPosY += velosityY;
-            newPosZ += velosityZ;
+            let velosityAccelerationX = ( - newPosX + intersects.x ) / 200;
+            let velosityAccelerationY = 0;
+            let velosityAccelerationZ = ( - newPosZ + intersects.z ) / 200;
+
+            newPosX += ( ( velosityX + velosityAccelerationX ) * delta ) / 16;
+            newPosY += ( ( velosityY + velosityAccelerationY ) * delta ) / 16;
+            newPosZ += ( ( velosityZ + velosityAccelerationZ ) * delta ) / 16;
 
             const newOpacity = this.geometry.attributes.opacityDecrease.getX( i ) - this.opacityCoef;
             this.geometry.attributes.opacityDecrease.setX( i, newOpacity );
 
-            if ( newOpacity <= 0.1 ) {
+            if ( newOpacity <= 0.001 ) {
 
                 newPosX = ( Math.random() - 0.5 ) * this.coordEpearingParticle + this.soursePosition.x;
                 newPosY = ( Math.random() - 0.5 ) * this.coordEpearingParticle + this.soursePosition.y;
                 newPosZ = ( Math.random() - 0.5 ) * this.coordEpearingParticle + this.soursePosition.z;
+
                 this.geometry.attributes.size.setX( i, 0 );
                 this.geometry.attributes.opacityDecrease.setX( i, 1 );
 
