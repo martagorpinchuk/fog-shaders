@@ -3,10 +3,9 @@ import { MapControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { FogGfx } from "./Fog";
 import { Pane } from "tweakpane";
 
-
 //
 
-class FogScene {
+export class FogScene {
 
     public camera: PerspectiveCamera;
     public plane: Mesh;
@@ -28,6 +27,7 @@ class FogScene {
     public permanentZ: number;
 
     public fog: FogGfx;
+    public animation: Animation;
 
     private sizes = {
         width: 0,
@@ -91,41 +91,51 @@ class FogScene {
 
         }
         this.fog = new FogGfx( new Color().setHex( + props.color.replace( '#', '0x' ) ).getHex(), props.numberOfSprites, props.height, props.width, props.depth );
+        this.animation = new Animation();
         this.scene.add( this.fog.wrapper );
 
         props.newPosition = this.fog.newPosition;
 
         // debug fog
         this.pane = new Pane();
+
+        this.pane.element.parentElement.style['width'] = '330px';
+
         const fogParam = this.pane.addFolder( {
             title: 'Fog',
+        } );
+        const fogSize = this.pane.addFolder( {
+            title: 'Size',
+        } );
+        const fogAnimation = this.pane.addFolder( {
+            title: 'Animation',
         } );
 
         this.mouseMoveFog( 'mousemove' );
 
-        fogParam.addInput( props, 'color', { view: 'color', alpha: true, label: 'uColor' } ).on( 'change', ( ev ) => {
+        fogParam.addInput( props, 'color', { view: 'color', alpha: true, label: 'color' } ).on( 'change', ( ev ) => {
 
             this.fog.color =  ev.value;
 
         } );
-        fogParam.addInput(  this.fog, 'frameDuration', { min: 10, max: 800, label: 'frameDuration' } ).on( 'change', ( ev ) => {
+        fogAnimation.addInput(  this.fog, 'frameDuration', { min: 10, max: 800, label: 'frameDuration' } ).on( 'change', ( ev ) => {
 
             this.fog.frameDuration = ev.value;
 
         } );
-        fogParam.addInput( this.fog, 'height', { min: 0, max: 5, step: 0.01, label: 'fogHeight' } ).on( 'change', ( ev ) => {
+        fogSize.addInput( this.fog, 'height', { min: 0, max: 5, step: 0.01, label: 'size X' } ).on( 'change', ( ev ) => {
 
             this.fog.height = ev.value;
             this.fog.generate( this.fog.density, this.fog.height, this.fog.width, this.fog.depth, props.newPosition );
 
         } );
-        fogParam.addInput( this.fog, 'width', { min: 0, max: 5, step: 0.01, label: 'fogWidth' } ).on( 'change', ( ev ) => {
+        fogSize.addInput( this.fog, 'width', { min: 0, max: 5, step: 0.01, label: 'size Y' } ).on( 'change', ( ev ) => {
 
             this.fog.width = ev.value;
             this.fog.generate( this.fog.density, this.fog.height, this.fog.width, this.fog.depth, props.newPosition );
 
         } );
-        fogParam.addInput( this.fog, 'depth', { min: 0, max: 5, step: 0.01, label: 'fogDepth' } ).on( 'change', ( ev ) => {
+        fogSize.addInput( this.fog, 'depth', { min: 0, max: 5, step: 0.01, label: 'size Z' } ).on( 'change', ( ev ) => {
 
             this.fog.depth = ev.value;
             this.fog.generate( this.fog.density, this.fog.height, this.fog.width, this.fog.depth, props.newPosition );
@@ -137,22 +147,22 @@ class FogScene {
             this.fog.generate( this.fog.density, this.fog.height, this.fog.width, this.fog.depth, props.newPosition )
 
         } );
-        fogParam.addInput( this.fog, 'speedSizeChange', { min: 0, max: 0.05, step: 0.001, label: 'speedSizeChange' } ).on( 'change', ( ev ) => {
+        fogAnimation.addInput( this.fog, 'speedSizeChange', { min: 0, max: 0.5, step: 0.001, label: 'growth speed' } ).on( 'change', ( ev ) => {
 
             this.fog.speedSizeChange = ev.value;
 
         } );
-        fogParam.addInput( this.fog, 'coordEpearingParticle', { min: 0, max: 1, step: 0.001, label: 'coordEpearingParticle' } ).on( 'change', ( ev ) => {
+        fogSize.addInput( this.fog, 'coordEpearingParticle', { min: 0, max: 1, step: 0.001, label: 'circle of appearance' } ).on( 'change', ( ev ) => {
 
             this.fog.coordEpearingParticle = ev.value;
 
         } );
-        fogParam.addInput( this.fog, 'opacityCoef', { min: 0, max: 0.03, step: 0.001, label: 'opacity' } ).on( 'change', ( ev ) => {
+        fogAnimation.addInput( this.fog, 'opacityCoef', { min: 0, max: 0.03, step: 0.001, label: 'fade' } ).on( 'change', ( ev ) => {
 
             this.fog.opacityCoef = ev.value;
 
         } );
-        fogParam.addInput( this.fog, 'cubeVisibility' ).on( 'change', ( ev ) => {
+        fogParam.addInput( this.fog, 'cubeVisibility', { label: 'bounding box' } ).on( 'change', ( ev ) => {
 
             if ( ! ev.value ) {
 
@@ -183,6 +193,7 @@ class FogScene {
             }
 
         } );
+        fogParam.addInput( this.fog.material.uniforms.uOpacity, 'value', { min: 0, max: 0.9, step: 0.001, label: 'opacity' } );
 
         //
 
@@ -197,25 +208,7 @@ class FogScene {
 
         this.raycaster.setFromCamera( this.pointer, this.camera );
 
-        // this.fogInertion();
-
     };
-
-    // public fogInertion() {
-
-    //     this.attenuationTime = this.elapsedTime;
-    //     // this.addRaycasterPointer;
-
-    //     this.raycaster.setFromCamera( this.pointer, this.camera );
-    //     const intersects = this.raycaster.intersectObject( this.plane );
-
-    //     let newPosX = intersects[0].point.x;
-    //     let newPosZ = intersects[0].point.z;
-
-    //     this.fog.soursePosition.set( newPosX, 0.5, newPosZ );
-    //     this.fog.cube.position.set( intersects[0].point.x, 0.5, intersects[0].point.z );
-
-    // };
 
     public mouseMoveFog ( movementProp ) : void {
 
@@ -248,10 +241,6 @@ class FogScene {
         this.elapsedTime += this.delta;
 
         //
-
-        // nice try
-        // this.attenuationTime = this.elapsedTime;
-        // const intersects = this.raycaster.intersectObject( this.plane );
 
         this.intersects = this.raycaster.intersectObject( this.plane )[ 0 ].point;
 

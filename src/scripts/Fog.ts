@@ -13,14 +13,14 @@ export class FogGfx {
     public geometry: InstancedBufferGeometry;
     public mesh: Mesh;
     public size: number;
-    public density: number = 15;
+    public density: number = 105;
     public velocity: Array<number> = [];
     public positions: Array<number> = [];
     public rotationX: number;
     public rotationY: number;
     public rotationZ: number;
     public randomPos: number = (Math.random() - 0.5) * 2;
-    public speedSizeChange: number = 0.029;
+    public speedSizeChange: number = 0.137;
     public coordEpearingParticle: number = 0.3;
     public opacityCoef: number = 0.00999;
     public cube: Mesh;
@@ -28,6 +28,7 @@ export class FogGfx {
     public newPosition: Vector3 = new Vector3( 0, 0.5, 0 );
     public soursePosition: Vector3 = new Vector3( 0, 0.5, 0 );
     public cubeVisibility: Boolean = true;
+    public sizeCoef: number = 0.1;
 
     private _frameDuration: number = 300;
     private _color: number;
@@ -192,7 +193,7 @@ export class FogGfx {
 
         for ( let i = 0; i < this.numberOfSprites; i ++ ) {
 
-            const newSize = this.geometry.attributes.size.getX( i ) + this.speedSizeChange;
+            const newSize = this.geometry.attributes.size.getX( i ) + this.speedSizeChange * this.sizeCoef;
             this.geometry.attributes.size.setX( i, newSize );
 
             let velosityX = this.geometry.attributes.velocity.getX( i );
@@ -207,12 +208,12 @@ export class FogGfx {
             let velosityAccelerationY = 0;
             let velosityAccelerationZ = ( - newPosZ + intersects.z ) / 200;
 
-            newPosX += ( ( velosityX + velosityAccelerationX ) * delta ) / 16;
-            newPosY += ( ( velosityY + velosityAccelerationY ) * delta ) / 16;
-            newPosZ += ( ( velosityZ + velosityAccelerationZ ) * delta ) / 16;
-
             const newOpacity = this.geometry.attributes.opacityDecrease.getX( i ) - this.opacityCoef;
             this.geometry.attributes.opacityDecrease.setX( i, newOpacity );
+
+            newPosX += ( ( velosityX + velosityAccelerationX * newOpacity ) * delta ) / 16;
+            newPosY += ( ( velosityY + velosityAccelerationY * newOpacity ) * delta ) / 16;
+            newPosZ += ( ( velosityZ + velosityAccelerationZ * newOpacity ) * delta ) / 16;
 
             if ( newOpacity <= 0.001 ) {
 

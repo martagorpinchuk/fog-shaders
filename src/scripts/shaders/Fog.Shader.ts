@@ -27,11 +27,13 @@ export class FogMaterial extends ShaderMaterial {
             varying float vCurrentFrameId;
             varying float vNextFrameId;
             varying float vOpacityDecrease;
+            varying float vOpacity;
 
             uniform float uRandomNum;
             uniform sampler2D uNoise;
             uniform float uTime;
             uniform float uFrameDuration;
+            uniform float uOpacity;
 
             void main() {
 
@@ -64,6 +66,7 @@ export class FogMaterial extends ShaderMaterial {
                 vNextFrameId = nextFrameId;
                 vCurrentFrameId  = currentFrameId;
                 vOpacityDecrease = opacityDecrease;
+                vOpacity = uOpacity;
 
             }
         `;
@@ -78,6 +81,7 @@ export class FogMaterial extends ShaderMaterial {
             varying float vCurrentFrameId;
             varying float vNextFrameId;
             varying float vOpacityDecrease;
+            varying float vOpacity;
 
             uniform sampler2D uPointTexture;
             uniform float alphaTest;
@@ -107,7 +111,7 @@ export class FogMaterial extends ShaderMaterial {
                 float fragmentTime = mod( uTime + vOffsetFrame, uFrameDuration ) / uFrameDuration;
 
                 gl_FragColor = mix( texture1, texture2, fragmentTime );
-                gl_FragColor *= vec4( uColor, vOpacityDecrease );
+                gl_FragColor *= vec4( uColor, vOpacityDecrease * vOpacity );
 
                 if ( gl_FragColor.a < alphaTest ) discard;
 
@@ -123,7 +127,8 @@ export class FogMaterial extends ShaderMaterial {
             uTime: { value: 0.0 },
             uTimeX: { value: 0.0 },
             uTimeY: { value: 0.0 },
-            uFrameDuration: { value: 16.0 }
+            uFrameDuration: { value: 16.0 },
+            uOpacity: { value: 0.9 }
         };
 
     }
