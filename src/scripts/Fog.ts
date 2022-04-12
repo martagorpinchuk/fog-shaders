@@ -1,4 +1,4 @@
-import { BoxGeometry, DoubleSide, Euler, Float32BufferAttribute, InstancedBufferAttribute, InstancedBufferGeometry, Matrix4, Mesh, MeshBasicMaterial, Object3D, Quaternion, Vector3 } from "three";
+import { BoxGeometry, Color, DoubleSide, Euler, Float32BufferAttribute, InstancedBufferAttribute, InstancedBufferGeometry, Matrix4, Mesh, MeshBasicMaterial, Object3D, Quaternion, Vector3 } from "three";
 import { FogMaterial } from './shaders/Fog.Shader';
 
 //
@@ -29,9 +29,12 @@ export class FogGfx {
     public soursePosition: Vector3 = new Vector3( 0, 0.5, 0 );
     public cubeVisibility: Boolean = true;
     public sizeCoef: number = 0.1;
+    public externalForce: Vector3 = new Vector3( 0, 0, 0);
+    public buffColor: Color;
 
     private _frameDuration: number = 300;
-    private _color: number;
+    private _outerColor: number;
+    private _innerColor: number;
 
     //
 
@@ -87,7 +90,7 @@ export class FogGfx {
 
         this.numberOfSprites = density * height * width * depth;
 
-        let size = [], uv, offsetFrame = [], sizeIncrease = [], opacityDecrease = [];
+        let size = [], uv, offsetFrame = [], sizeIncrease = [], opacityDecrease = [], color = [];
         const transformRow1 = [];
         const transformRow2 = [];
         const transformRow3 = [];
@@ -140,7 +143,6 @@ export class FogGfx {
             sizeIncrease.push( Math.random() * 0.02 );
             opacityDecrease.push( Math.random() );
             this.velocity.push( ( Math.random() - 0.5 ) * 2 / 100, ( Math.random() - 0.5 ) * 2 / 100, ( Math.random() - 0.5 ) * 2 / 100 );
-
             offsetFrame.push( Math.floor( Math.random() * 50 * 16 ) );
 
         }
@@ -189,7 +191,7 @@ export class FogGfx {
 
     };
 
-    public update ( delta: number, intersects: Vector3 ) : void {
+    public update ( delta: number, intersects: Vector3, externalForce: Vector3 ) : void {
 
         for ( let i = 0; i < this.numberOfSprites; i ++ ) {
 
@@ -204,9 +206,9 @@ export class FogGfx {
             let newPosY = this.geometry.attributes.transformRow4.getY( i );
             let newPosZ = this.geometry.attributes.transformRow4.getZ( i );
 
-            let velosityAccelerationX = ( - newPosX + intersects.x ) / 200;
-            let velosityAccelerationY = 0;
-            let velosityAccelerationZ = ( - newPosZ + intersects.z ) / 200;
+            let velosityAccelerationX = ( intersects.x - newPosX + externalForce.x ) / 200;
+            let velosityAccelerationY = ( intersects.y - newPosY + externalForce.y ) / 200;;
+            let velosityAccelerationZ = ( intersects.z - newPosZ + externalForce.z ) / 200;
 
             const newOpacity = this.geometry.attributes.opacityDecrease.getX( i ) - this.opacityCoef;
             this.geometry.attributes.opacityDecrease.setX( i, newOpacity );
@@ -253,15 +255,15 @@ export class FogGfx {
 
     };
 
-    public get color () {
+    public get outerColor () {
 
-        return this._color;
+        return this._outerColor;
 
     };
 
-    public set color ( color: any ) {
+    public set outerColor ( color: any ) {
 
-        this._color = color;
+        this._outerColor = color;
 
         if ( typeof color === 'string' ) {
 
@@ -273,6 +275,28 @@ export class FogGfx {
 
         }
 
-    }
+    };
+
+    public get innerColor () {
+
+        return this._innerColor;
+
+    };
+
+    public set innerColor ( color: any ) {
+
+        this._innerColor = color;
+
+        if ( typeof color === 'string' ) {
+
+            this.material.uniforms.uInnerColor.value.setHex( parseInt( color.replace( '#', '0x' ) ) )
+
+        } else {
+
+            this.material.uniforms.uInnerColor.value.setHex( color );
+
+        }
+
+    };
 
 }

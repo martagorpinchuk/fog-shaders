@@ -28,6 +28,7 @@ export class FogMaterial extends ShaderMaterial {
             varying float vNextFrameId;
             varying float vOpacityDecrease;
             varying float vOpacity;
+            varying vec3 vPosition;
 
             uniform float uRandomNum;
             uniform sampler2D uNoise;
@@ -67,6 +68,7 @@ export class FogMaterial extends ShaderMaterial {
                 vCurrentFrameId  = currentFrameId;
                 vOpacityDecrease = opacityDecrease;
                 vOpacity = uOpacity;
+                vPosition = transformRow4.xyz;
 
             }
         `;
@@ -82,12 +84,14 @@ export class FogMaterial extends ShaderMaterial {
             varying float vNextFrameId;
             varying float vOpacityDecrease;
             varying float vOpacity;
+            varying vec3 vPosition;
 
             uniform sampler2D uPointTexture;
             uniform float alphaTest;
             uniform vec3 uColor;
             uniform float uTime;
             uniform float uFrameDuration;
+            uniform vec3 uInnerColor;
 
             void main() {
 
@@ -111,7 +115,11 @@ export class FogMaterial extends ShaderMaterial {
                 float fragmentTime = mod( uTime + vOffsetFrame, uFrameDuration ) / uFrameDuration;
 
                 gl_FragColor = mix( texture1, texture2, fragmentTime );
-                gl_FragColor *= vec4( uColor, vOpacityDecrease * vOpacity );
+                vec3 finalColor = uColor;
+
+                finalColor = mix( uColor, uInnerColor, step( 0.3, vOpacityDecrease ) * vOpacityDecrease );
+
+                gl_FragColor *= vec4( finalColor, vOpacityDecrease * vOpacity );
 
                 if ( gl_FragColor.a < alphaTest ) discard;
 
@@ -128,7 +136,8 @@ export class FogMaterial extends ShaderMaterial {
             uTimeX: { value: 0.0 },
             uTimeY: { value: 0.0 },
             uFrameDuration: { value: 16.0 },
-            uOpacity: { value: 0.9 }
+            uOpacity: { value: 0.9 },
+            uInnerColor: { value: new Color( 0xFFCE00 ) }
         };
 
     }

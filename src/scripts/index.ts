@@ -86,11 +86,12 @@ export class FogScene {
             height: 1,
             width: 1,
             depth: 1,
-            color: '#ff0000',
+            outerColor: '#ff0000',
+            innerColor: '#FFCE00',
             newPosition: new Vector3( 0, 0.5, 0 )
 
         }
-        this.fog = new FogGfx( new Color().setHex( + props.color.replace( '#', '0x' ) ).getHex(), props.numberOfSprites, props.height, props.width, props.depth );
+        this.fog = new FogGfx( new Color().setHex( + props.outerColor.replace( '#', '0x' ) ).getHex(), props.numberOfSprites, props.height, props.width, props.depth );
         this.animation = new Animation();
         this.scene.add( this.fog.wrapper );
 
@@ -111,11 +112,16 @@ export class FogScene {
             title: 'Animation',
         } );
 
-        this.mouseMoveFog( 'mousemove' );
+        this.mouseMoveFog( 'click' );
 
-        fogParam.addInput( props, 'color', { view: 'color', alpha: true, label: 'color' } ).on( 'change', ( ev ) => {
+        fogParam.addInput( props, 'outerColor', { view: 'color', alpha: true, label: 'outer color' } ).on( 'change', ( ev ) => {
 
-            this.fog.color =  ev.value;
+            this.fog.outerColor =  ev.value;
+
+        } );
+        fogParam.addInput( props, 'innerColor', { view: 'color', alpha: true, label: 'inner color' } ).on( 'change', ( ev ) => {
+
+            this.fog.innerColor = ev.value;
 
         } );
         fogAnimation.addInput(  this.fog, 'frameDuration', { min: 10, max: 800, label: 'frameDuration' } ).on( 'change', ( ev ) => {
@@ -176,7 +182,7 @@ export class FogScene {
             }
 
         } );
-        fogParam.addInput( this, 'fogMovement' ).on( 'change', ( ev ) => {
+        fogParam.addInput( this, 'fogMovement', { label: 'mouse follow' } ).on( 'change', ( ev ) => {
 
             if ( ev.value ) {
 
@@ -194,6 +200,21 @@ export class FogScene {
 
         } );
         fogParam.addInput( this.fog.material.uniforms.uOpacity, 'value', { min: 0, max: 0.9, step: 0.001, label: 'opacity' } );
+        fogSize.addInput( this.fog.externalForce, 'x', { min: -20, max: 20, step: 0.1, label: 'external force X' } ).on( 'change', ( ev ) => {
+
+            this.fog.externalForce.x = ev.value;
+
+        } );
+        fogSize.addInput( this.fog.externalForce, 'y', { min: -20, max: 20, step: 0.1, label: 'external force Y' } ).on( 'change', ( ev ) => {
+
+            this.fog.externalForce.y = ev.value;
+
+        } );
+        fogSize.addInput( this.fog.externalForce, 'z', { min: -20, max: 20, step: 0.1, label: 'external force Z' } ).on( 'change', ( ev ) => {
+
+            this.fog.externalForce.z = ev.value;
+
+        } );
 
         //
 
@@ -247,7 +268,7 @@ export class FogScene {
         this.fog.soursePosition.set( this.intersects.x, 0.5, this.intersects.z );
         this.fog.cube.position.set( this.intersects.x, 0.5, this.intersects.z );
 
-        this.fog.update( this.delta, this.intersects );
+        this.fog.update( this.delta, this.intersects, this.fog.externalForce );
 
         //
 
