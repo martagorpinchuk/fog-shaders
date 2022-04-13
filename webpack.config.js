@@ -12,7 +12,8 @@ module.exports = conf = {
         poll: 500
     },
     entry: {
-        main: './src/scripts/index'
+        // main: './src/scripts/index'
+        main: './src/scripts/Postprocessing'
     },
     resolve: {
         extensions: [ '.ts', '.tsx', '.js' ]
