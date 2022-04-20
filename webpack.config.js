@@ -1,7 +1,10 @@
 
-const path = require('path');
+// const path = require('path');
 const webpack = require('webpack');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
+
+const express = require('express');
+const path = require('path');
 
 //
 
@@ -11,9 +14,24 @@ module.exports = conf = {
     watchOptions: {
         poll: 500
     },
-    entry: {
+    // entry: {
         // main: './src/scripts/index'
-        main: './src/scripts/Postprocessing'
+        // main: './src/scripts/server/'
+    // },
+    entry: {
+        'fog': './src/scripts/Fog.ts',
+        'water': './src/scripts/Water.ts',
+        'combustion': './src/scripts/Combustion.ts',
+    },
+    watchOptions: {
+        ignored: '**/node_modules'
+    },
+    devServer: {
+        onAfterSetupMiddleware: ( devServer ) => {
+
+            devServer.app.use( '/', express.static('/src/static') );
+
+        }
     },
     resolve: {
         extensions: [ '.ts', '.tsx', '.js' ]

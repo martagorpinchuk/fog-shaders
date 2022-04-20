@@ -1,302 +1,292 @@
-import { BoxGeometry, Color, DoubleSide, Euler, Float32BufferAttribute, InstancedBufferAttribute, InstancedBufferGeometry, Matrix4, Mesh, MeshBasicMaterial, Object3D, Quaternion, Vector3 } from "three";
-import { FogMaterial } from './shaders/Fog.Shader';
+import { Clock, Color, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, PlaneBufferGeometry, Raycaster, Scene, Vector2, Vector3, WebGLRenderer } from "three";
+import { MapControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { FogGfx } from "./FogGfx";
+import { Pane } from "tweakpane";
 
 //
 
-export class FogGfx {
+export class FogScene {
 
-    public numberOfSprites: number = 60;
-    public height: number = 1;
-    public width: number = 1;
-    public depth: number = 1;
-    public material: FogMaterial;
-    public geometry: InstancedBufferGeometry;
-    public mesh: Mesh;
-    public size: number;
-    public density: number = 105;
-    public velocity: Array<number> = [];
-    public positions: Array<number> = [];
-    public rotationX: number;
-    public rotationY: number;
-    public rotationZ: number;
-    public randomPos: number = (Math.random() - 0.5) * 2;
-    public speedSizeChange: number = 0.137;
-    public coordEpearingParticle: number = 0.3;
-    public opacityCoef: number = 0.00999;
-    public cube: Mesh;
-    public wrapper: Object3D = new Object3D();
-    public newPosition: Vector3 = new Vector3( 0, 0.5, 0 );
-    public soursePosition: Vector3 = new Vector3( 0, 0.5, 0 );
-    public cubeVisibility: Boolean = true;
-    public sizeCoef: number = 0.1;
-    public externalForce: Vector3 = new Vector3( 0, 0, 0);
-    public buffColor: Color;
+    public camera: PerspectiveCamera;
+    public plane: Mesh;
+    public scene: Scene;
+    public canvas: HTMLCanvasElement;
+    public mapControls: MapControls;
+    public renderer: WebGLRenderer;
+    public delta: number;
+    public elapsedTime: number = 0;
+    public clock: Clock;
+    public pane: Pane;
+    public raycaster: Raycaster;
+    public pointer: Vector2;
+    public fogMovement: Boolean = true;
+    public attenuationTime: number;
+    public intersects: Vector3;
 
-    private _frameDuration: number = 300;
-    private _outerColor: number;
-    private _innerColor: number;
+    public permanentX: number;
+    public permanentZ: number;
 
-    //
+    public fog: FogGfx;
+    public animation: Animation;
 
-    constructor ( color: number, numberOfSprites: number, height: number, width: number, depth: number ) {
+    private sizes = {
+        width: 0,
+        height: 0
+    };
 
-        this.height = height;
-        this.width = width;
-        this.depth = depth;
-        this.numberOfSprites = numberOfSprites;
+    constructor() {
 
-        // create fog
-        this.material = new FogMaterial();
-        this.material.side = DoubleSide;
-
-        this.material.uniforms.uColor.value.setHex( color );
-
-        this.material.uniforms.uFrameDuration.value = this._frameDuration;
-
-        this.generate( this.density, this.height, this.width, this.depth, this.newPosition );
+        this.init();
 
     };
 
-    public generate ( density: number, height: number, width: number, depth: number, newPosition: Vector3 ) : void {
+    public init() : void {
 
-        const boxGeometry = new BoxGeometry( 1, 1, 1 );
-        const boxMaterial = new MeshBasicMaterial( { color: 0x00ff00 } );
-        boxMaterial.wireframe = true;
+        // Canvas
+        this.canvas = document.querySelector( 'canvas.webglView' ) as HTMLCanvasElement;
 
-        if ( ! this.cube ) {
+        // Scene
+        this.scene = new Scene();
+        this.scene.background = new Color( '#c7c1b7' );
 
-            this.cube = new Mesh( boxGeometry, boxMaterial );
-            this.wrapper.add( this.cube );
+        // Sizes
+        this.sizes.width = window.innerWidth,
+        this.sizes.height = window.innerHeight;
+
+        // Camera
+        this.camera = new PerspectiveCamera( 45, this.sizes.width / this.sizes.height, 0.1, 100 );
+        this.camera.position.set( 3, 4, 2 );
+        this.scene.add( this.camera );
+
+        // Controls
+        this.mapControls = new MapControls( this.camera, this.canvas );
+        this.mapControls.enableDamping = true;
+
+        // Plane
+        let planeGeometry = new PlaneBufferGeometry( 3000, 3000, 1, 1 );
+        let planeMaterial = new MeshBasicMaterial( { color: '#e6a67a' } );
+        this.plane = new Mesh( planeGeometry, planeMaterial );
+        this.plane.rotation.x -= Math.PI / 2;
+        this.scene.add( this.plane );
+
+        // Renderer
+        this.renderer = new WebGLRenderer( { canvas: this.canvas } );
+        this.renderer.setSize( this.sizes.width, this.sizes.height );
+        this.renderer.setPixelRatio( Math.min(window.devicePixelRatio, 2 ) );
+
+        // Resize
+        window.addEventListener( 'resize', this.resize() );
+
+        this.clock = new Clock();
+
+        // Fog
+        let props = {
+
+            numberOfSprites: 16,
+            height: 1,
+            width: 1,
+            depth: 1,
+            outerColor: '#ff0000',
+            innerColor: '#FFCE00',
+            newPosition: new Vector3( 0, 0.5, 0 )
 
         }
+        this.fog = new FogGfx( new Color().setHex( + props.outerColor.replace( '#', '0x' ) ).getHex(), props.numberOfSprites, props.height, props.width, props.depth );
+        this.animation = new Animation();
+        this.scene.add( this.fog.wrapper );
 
-        if ( this.mesh ) {
+        props.newPosition = this.fog.newPosition;
 
-            this.geometry.dispose();
-            boxGeometry.dispose();
+        // debug fog
+        this.pane = new Pane();
 
-            this.wrapper.remove( this.mesh );
+        this.pane.element.parentElement.style['width'] = '330px';
 
-        }
+        const fogParam = this.pane.addFolder( {
+            title: 'Fog',
+        } );
+        const fogSize = this.pane.addFolder( {
+            title: 'Size',
+        } );
+        const fogAnimation = this.pane.addFolder( {
+            title: 'Animation',
+        } );
 
-        this.newPosition.x = newPosition.x;
-        this.newPosition.y = newPosition.y;
-        this.newPosition.z = newPosition.z;
+        this.mouseMoveFog( 'click' );
 
-        this.height = height;
-        this.width = width;
-        this.depth = depth;
-        let fogPointPosition = new Vector3( 0, 0, 0 );
+        fogParam.addInput( props, 'outerColor', { view: 'color', alpha: true, label: 'outer color' } ).on( 'change', ( ev ) => {
 
-        this.numberOfSprites = density * height * width * depth;
+            this.fog.outerColor =  ev.value;
 
-        let size = [], uv, offsetFrame = [], sizeIncrease = [], opacityDecrease = [], color = [];
-        const transformRow1 = [];
-        const transformRow2 = [];
-        const transformRow3 = [];
-        const transformRow4 = [];
+        } );
+        fogParam.addInput( props, 'innerColor', { view: 'color', alpha: true, label: 'inner color' } ).on( 'change', ( ev ) => {
 
-        for ( let i = 0; i < this.numberOfSprites; i ++ ) {
+            this.fog.innerColor = ev.value;
 
-            let x = ( Math.random() - 0.5 ) * width;
-            let y = Math.random() * height;
-            let z = ( Math.random() - 0.5 ) * depth;
+        } );
+        fogAnimation.addInput(  this.fog, 'frameDuration', { min: 10, max: 800, label: 'frameDuration' } ).on( 'change', ( ev ) => {
 
-            let distanceX = fogPointPosition.x - x;
-            let distanceY = y - fogPointPosition.y;
-            let distanceZ = fogPointPosition.z - z;
+            this.fog.frameDuration = ev.value;
 
-            if ( Math.abs( distanceX ) > width / 2.5 - Math.random() - 0.5 ) {
+        } );
+        fogSize.addInput( this.fog, 'height', { min: 0, max: 5, step: 0.01, label: 'size X' } ).on( 'change', ( ev ) => {
 
-                distanceX -= Math.random() - 0.5;
+            this.fog.height = ev.value;
+            this.fog.generate( this.fog.density, this.fog.height, this.fog.width, this.fog.depth, props.newPosition );
+
+        } );
+        fogSize.addInput( this.fog, 'width', { min: 0, max: 5, step: 0.01, label: 'size Y' } ).on( 'change', ( ev ) => {
+
+            this.fog.width = ev.value;
+            this.fog.generate( this.fog.density, this.fog.height, this.fog.width, this.fog.depth, props.newPosition );
+
+        } );
+        fogSize.addInput( this.fog, 'depth', { min: 0, max: 5, step: 0.01, label: 'size Z' } ).on( 'change', ( ev ) => {
+
+            this.fog.depth = ev.value;
+            this.fog.generate( this.fog.density, this.fog.height, this.fog.width, this.fog.depth, props.newPosition );
+
+        } );
+        fogParam.addInput( this.fog, 'density', { min: 3, max: 1000, step: 1, label: 'density' } ).on( 'change', ( ev ) => {
+
+            this.fog.density = ev.value;
+            this.fog.generate( this.fog.density, this.fog.height, this.fog.width, this.fog.depth, props.newPosition )
+
+        } );
+        fogAnimation.addInput( this.fog, 'speedSizeChange', { min: 0, max: 0.5, step: 0.001, label: 'growth speed' } ).on( 'change', ( ev ) => {
+
+            this.fog.speedSizeChange = ev.value;
+
+        } );
+        fogSize.addInput( this.fog, 'coordEpearingParticle', { min: 0, max: 1, step: 0.001, label: 'circle of appearance' } ).on( 'change', ( ev ) => {
+
+            this.fog.coordEpearingParticle = ev.value;
+
+        } );
+        fogAnimation.addInput( this.fog, 'opacityCoef', { min: 0, max: 0.03, step: 0.001, label: 'fade' } ).on( 'change', ( ev ) => {
+
+            this.fog.opacityCoef = ev.value;
+
+        } );
+        fogParam.addInput( this.fog, 'cubeVisibility', { label: 'bounding box' } ).on( 'change', ( ev ) => {
+
+            if ( ! ev.value ) {
+
+                this.fog.wrapper.remove( this.fog.cube );
+
+            }
+            if ( ev.value ) {
+
+                this.fog.wrapper.add( this.fog.cube );
 
             }
 
-            if ( Math.abs( distanceY ) > height / 2.5 - Math.random() - 0.5 ) {
+        } );
+        fogParam.addInput( this, 'fogMovement', { label: 'mouse follow' } ).on( 'change', ( ev ) => {
 
-                distanceY -= Math.random() - 0.5;
+            if ( ev.value ) {
 
-            }
+                let movementProp = 'mousemove';
+                this.canvas.removeEventListener( 'click', this.addRaycasterPointer );
+                this.mouseMoveFog( movementProp );
 
-            if ( Math.abs( distanceZ ) > depth / 2.5 - Math.random() - 0.5 ) {
+            } else {
 
-                distanceZ -= Math.random() - 0.5;
-
-            }
-
-            let scaleX = 1;
-            let scaleY = 1;
-            let scaleZ = 1;
-
-            const rotationX = 0;
-            const rotationY = 0;
-            const rotationZ = 0;
-
-            let transformMatrix = new Matrix4().compose( new Vector3( distanceX, distanceY, distanceZ ), new Quaternion().setFromEuler( new Euler( rotationX, rotationY, rotationZ ) ), new Vector3( scaleX, scaleY, scaleZ ) ).toArray();
-
-            transformRow1.push( transformMatrix[0], transformMatrix[1], transformMatrix[2], transformMatrix[3] );
-            transformRow2.push( transformMatrix[4], transformMatrix[5], transformMatrix[6], transformMatrix[7] );
-            transformRow3.push( transformMatrix[8], transformMatrix[9], transformMatrix[10], transformMatrix[11] );
-            transformRow4.push( transformMatrix[12], transformMatrix[13], transformMatrix[14], transformMatrix[15] );
-
-            size.push( Math.random() );
-            sizeIncrease.push( Math.random() * 0.02 );
-            opacityDecrease.push( Math.random() );
-            this.velocity.push( ( Math.random() - 0.5 ) * 2 / 100, ( Math.random() - 0.5 ) * 2 / 100, ( Math.random() - 0.5 ) * 2 / 100 );
-            offsetFrame.push( Math.floor( Math.random() * 50 * 16 ) );
-
-        }
-
-        this.positions = [
-
-            - 1.0, - 1.0,  0.0,
-              1.0, - 1.0,  0.0,
-              1.0,   1.0,  0.0,
-
-              1.0,   1.0,  0.0,
-            - 1.0,   1.0,  0.0,
-            - 1.0, - 1.0,  0.0
-
-        ];
-
-        uv = [
-
-            0, 0,
-            1, 0,
-            1, 1,
-
-            1, 1,
-            0, 1,
-            0, 0
-
-        ];
-
-        this.geometry = new InstancedBufferGeometry();
-
-        this.geometry.setAttribute( 'position', new Float32BufferAttribute( this.positions, 3 ) );
-        this.geometry.setAttribute( 'uv', new Float32BufferAttribute( uv, 2 ) );
-
-        this.geometry.setAttribute( 'transformRow1', new InstancedBufferAttribute( new Float32Array( transformRow1 ), 4 ) );
-        this.geometry.setAttribute( 'transformRow2', new InstancedBufferAttribute( new Float32Array( transformRow2 ), 4 ) );
-        this.geometry.setAttribute( 'transformRow3', new InstancedBufferAttribute( new Float32Array( transformRow3 ), 4 ) );
-        this.geometry.setAttribute( 'transformRow4', new InstancedBufferAttribute( new Float32Array( transformRow4 ), 4 ) );
-        this.geometry.setAttribute( 'offsetFrame', new InstancedBufferAttribute( new Float32Array( offsetFrame ), 1 ) );
-        this.geometry.setAttribute( 'velocity', new InstancedBufferAttribute( new Float32Array( this.velocity ), 3 ) );
-        this.geometry.setAttribute( 'opacityDecrease', new InstancedBufferAttribute( new Float32Array( opacityDecrease ), 1 ) );
-        this.geometry.setAttribute( 'size', new InstancedBufferAttribute( new Float32Array( size ), 1 ) );
-
-        this.mesh = new Mesh( this.geometry, this.material );
-
-        this.wrapper.add( this.mesh );
-
-    };
-
-    public update ( delta: number, intersects: Vector3, externalForce: Vector3 ) : void {
-
-        for ( let i = 0; i < this.numberOfSprites; i ++ ) {
-
-            const newSize = this.geometry.attributes.size.getX( i ) + this.speedSizeChange * this.sizeCoef;
-            this.geometry.attributes.size.setX( i, newSize );
-
-            let velosityX = this.geometry.attributes.velocity.getX( i );
-            let velosityY = this.geometry.attributes.velocity.getY( i );
-            let velosityZ = this.geometry.attributes.velocity.getZ( i );
-
-            let newPosX = this.geometry.attributes.transformRow4.getX( i );
-            let newPosY = this.geometry.attributes.transformRow4.getY( i );
-            let newPosZ = this.geometry.attributes.transformRow4.getZ( i );
-
-            let velosityAccelerationX = ( intersects.x - newPosX + externalForce.x ) / 200;
-            let velosityAccelerationY = ( intersects.y - newPosY + externalForce.y ) / 200;;
-            let velosityAccelerationZ = ( intersects.z - newPosZ + externalForce.z ) / 200;
-
-            const newOpacity = this.geometry.attributes.opacityDecrease.getX( i ) - this.opacityCoef;
-            this.geometry.attributes.opacityDecrease.setX( i, newOpacity );
-
-            newPosX += ( ( velosityX + velosityAccelerationX * newOpacity ) * delta ) / 16;
-            newPosY += ( ( velosityY + velosityAccelerationY * newOpacity ) * delta ) / 16;
-            newPosZ += ( ( velosityZ + velosityAccelerationZ * newOpacity ) * delta ) / 16;
-
-            if ( newOpacity <= 0.001 ) {
-
-                newPosX = ( Math.random() - 0.5 ) * this.coordEpearingParticle + this.soursePosition.x;
-                newPosY = ( Math.random() - 0.5 ) * this.coordEpearingParticle + this.soursePosition.y;
-                newPosZ = ( Math.random() - 0.5 ) * this.coordEpearingParticle + this.soursePosition.z;
-
-                this.geometry.attributes.size.setX( i, 0 );
-                this.geometry.attributes.opacityDecrease.setX( i, 1 );
+                let movementProp = 'click';
+                this.canvas.removeEventListener( 'mousemove', this.addRaycasterPointer );
+                this.mouseMoveFog( movementProp );
 
             }
 
-            this.geometry.attributes.transformRow4.setX( i, newPosX );
-            this.geometry.attributes.transformRow4.setY( i, newPosY );
-            this.geometry.attributes.transformRow4.setZ( i, newPosZ );
+        } );
+        fogParam.addInput( this.fog.material.uniforms.uOpacity, 'value', { min: 0, max: 0.9, step: 0.001, label: 'opacity' } );
+        fogSize.addInput( this.fog.externalForce, 'x', { min: -20, max: 20, step: 0.1, label: 'external force X' } ).on( 'change', ( ev ) => {
+
+            this.fog.externalForce.x = ev.value;
+
+        } );
+        fogSize.addInput( this.fog.externalForce, 'y', { min: -20, max: 20, step: 0.1, label: 'external force Y' } ).on( 'change', ( ev ) => {
+
+            this.fog.externalForce.y = ev.value;
+
+        } );
+        fogSize.addInput( this.fog.externalForce, 'z', { min: -20, max: 20, step: 0.1, label: 'external force Z' } ).on( 'change', ( ev ) => {
+
+            this.fog.externalForce.z = ev.value;
+
+        } );
+
+        //
+
+        this.tick();
+
+    };
+
+    private addRaycasterPointer = ( event ) : void => {
+
+        this.pointer.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+        this.pointer.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+
+        this.raycaster.setFromCamera( this.pointer, this.camera );
+
+    };
+
+    public mouseMoveFog ( movementProp ) : void {
+
+        // Raycaster
+        this.raycaster = new Raycaster();
+        this.pointer = new Vector2();
+
+        this.canvas.addEventListener( movementProp, this.addRaycasterPointer )
+
+    };
+
+    private resize () : any {
+
+        this.sizes.width = window.innerWidth;
+        this.sizes.height = window.innerHeight;
+
+        this.camera.aspect = this.sizes.width / this.sizes.height;
+        this.camera.updateProjectionMatrix();
+
+        this.renderer.setSize( this.sizes.width, this.sizes.height );
+        this.renderer.setPixelRatio( Math.min( window.devicePixelRatio, 2 ) );
+
+    };
+
+    public tick = () : void => {
+
+        window.requestAnimationFrame( this.tick );
+
+        this.delta = this.clock.getDelta() * 1000;
+        this.elapsedTime += this.delta;
+
+        //
+
+        this.intersects = this.raycaster.intersectObject( this.plane )[ 0 ].point;
+
+        this.fog.soursePosition.set( this.intersects.x, 0.5, this.intersects.z );
+        this.fog.cube.position.set( this.intersects.x, 0.5, this.intersects.z );
+
+        this.fog.update( this.delta, this.intersects, this.fog.externalForce );
+
+        //
+
+        this.fog.material.uniforms.uTime.value = this.elapsedTime;
+
+        //
+
+        if ( this.sizes.width !== window.innerWidth || this.sizes.height !== window.innerHeight ) {
+
+            this.resize();
 
         }
 
-        this.geometry.attributes.opacityDecrease.needsUpdate = true;
-        this.geometry.attributes.size.needsUpdate = true;
-        this.geometry.attributes.transformRow4.needsUpdate = true;
-
-    };
-
-    //
-
-    public get frameDuration () {
-
-        return this._frameDuration;
-
-    };
-
-    public set frameDuration ( frameDuration: number ) {
-
-        this.material.uniforms.uFrameDuration.value = frameDuration;
-        this._frameDuration = this.material.uniforms.uFrameDuration.value;
-
-    };
-
-    public get outerColor () {
-
-        return this._outerColor;
-
-    };
-
-    public set outerColor ( color: any ) {
-
-        this._outerColor = color;
-
-        if ( typeof color === 'string' ) {
-
-            this.material.uniforms.uColor.value.setHex( parseInt( color.replace( '#', '0x' ) ) )
-
-        } else {
-
-            this.material.uniforms.uColor.value.setHex( color );
-
-        }
-
-    };
-
-    public get innerColor () {
-
-        return this._innerColor;
-
-    };
-
-    public set innerColor ( color: any ) {
-
-        this._innerColor = color;
-
-        if ( typeof color === 'string' ) {
-
-            this.material.uniforms.uInnerColor.value.setHex( parseInt( color.replace( '#', '0x' ) ) )
-
-        } else {
-
-            this.material.uniforms.uInnerColor.value.setHex( color );
-
-        }
+        this.mapControls.update();
+        this.renderer.render( this.scene, this.camera );
 
     };
 
 }
+
+export default new FogScene();
