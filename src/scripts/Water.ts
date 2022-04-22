@@ -240,7 +240,8 @@ export class Water {
         this.waterMaterial.uniforms.cameraNear.value = this.camera.near;
         this.waterMaterial.uniforms.cameraFar.value = this.camera.far;
 
-        this.waterMaterial.uniforms.uTime.value = Math.sin(this.elapsedTime / 168);
+        // this.waterMaterial.uniforms.uTime.value = Math.abs( Math.sin( this.elapsedTime / 1068 ) ) + 1;
+        this.waterMaterial.uniforms.uTime.value = Math.sin( this.elapsedTime / 1068 ) + 2; //1068
 
         // this.postMaterial.uniforms.tDepth.value = this.target.depthTexture;
         // this.postMaterial.uniforms.cameraNear.value = this.camera.near;

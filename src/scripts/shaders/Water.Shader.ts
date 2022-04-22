@@ -132,9 +132,11 @@ export class WaterMaterial extends ShaderMaterial {
 
             float perlinNoise = getPerlinNoise2d( centeredUv * 203.0 + uTime / 20.0 );
             vec3 color = uColor;
-            float foamDiff = min( ( waterDepth * 700.0 ) / 1.2, 1.0 );
+            float foamDiff = min( ( waterDepth * 700.0 ) / ( uTime ) / 0.55, 1.0 );
             // float foam = clamp( sin( foamDiff * 5.0 * 3.1415 ), 0.0, 1.0 );
+
             float foam = 1.0 - step( foamDiff - clamp( sin( ( foamDiff + sin( uTime / 30.0 ) ) * 9.0 * 3.1415 ), 0.0, 1.0 ) * ( 1.0 - foamDiff ), perlinNoise );
+            // foam += step( foam, perlinNoise );
 
             // foam += perlinNoise;
 
