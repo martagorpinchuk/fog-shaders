@@ -1,0 +1,11 @@
+Model Information:
+* title:	Potato Character
+* source:	https://sketchfab.com/3d-models/potato-character-df936bc8c3e14aeb98a242943b9caf35
+* author:	Indie Omega (Alan Antich) (https://sketchfab.com/IOM_Studios)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Potato Character" (https://sketchfab.com/3d-models/potato-character-df936bc8c3e14aeb98a242943b9caf35) by Indie Omega (Alan Antich) (https://sketchfab.com/IOM_Studios) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
